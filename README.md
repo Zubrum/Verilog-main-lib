@@ -1,2 +1,1 @@
-F-T
-===
+Functions & Tasks on Verilog HDL for everyday
