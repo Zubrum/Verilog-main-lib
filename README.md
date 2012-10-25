@@ -1,1 +1,1 @@
-Functions & Tasks on Verilog HDL for everyday
+Functions & Tasks on Verilog for everyday
