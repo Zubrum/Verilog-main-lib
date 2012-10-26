@@ -2,12 +2,11 @@
         Verilog functions&tasks for everyday
 */
 
-
-
+module zrb_bin2gray
 /*
 zrb_bin2gray #(8) instance_name (binary_input, gray_output);
 */
-module zrb_bin2gray
+
     #(parameter LENGTH = 8)
     (
     input   wire    [ (LENGTH-1) :  0 ] binary_input,
@@ -17,16 +16,17 @@ genvar k;
 generate
     assign gray_output[LENGTH-1] = binary_input[LENGTH-1];
     for(k = LENGTH-2; k >= 0; k = k - 1)
-    begin
+    begin: gray
         assign gray_output[k] = binary_input[k+1] ^ binary_input[k];
     end
 endgenerate
 endmodule
 
+module zrb_gray2bin
 /*
 zrb_gray2bin #(8) instance_name (gray_input, binary_output);
 */
-module zrb_gray2bin
+
     #(parameter LENGTH = 8)
     (
     input   wire    [ (LENGTH-1) :  0 ] gray_input,
@@ -36,13 +36,13 @@ genvar k;
 generate
     assign binary_output[LENGTH-1] = gray_input[LENGTH-1];
     for(k = LENGTH-2; k >= 0; k = k - 1)
-    begin
+    begin: bin
         assign binary_output[k] = ^(gray_input >> k);
     end
 endgenerate
 endmodule
 
-
+/*
 module zrb_fifo
     #(parameter ADDR_WIDTH, DATA_WIDTH)
     (
@@ -72,8 +72,8 @@ reg     [ (ADDR_WIDTH-1) :  0 ] mem [  0 : (DEPTH-1) ];
 reg     [ (DATA_WIDTH-1) :  0 ] r_data_out = {DATA_WIDTH{1'b0}};
 assign data_out = r_data_out;
 assign fifo_empty = w_wr_ptr_rd_clk == w_rd_bin;
-/*assign fifo_full = w_wr_bin > w_rd_bin ? (w_wr_bin - w_rd_bin == {(ADDR_WIDTH-1){1'b0}, 1'b1}) : 
-                                         ()*/
+assign fifo_full = w_wr_bin > w_rd_bin ? (w_wr_bin - w_rd_bin == {(ADDR_WIDTH-1){1'b0}, 1'b1}) : 
+                                         ()
 
 zrb_gray2bin #(ADDR_WIDTH) u0 (r_wr_ptr, w_wr_bin);
 zrb_bin2gray #(ADDR_WIDTH) u1 (w_wr_bin + 1'b1, w_wr_next);
@@ -114,4 +114,80 @@ begin
     sync_0 <= w_wr_bin;
     sync_1 <= sync_0;
 end
+*/
+
+module zrb_baud_generator
+/*
+zrb_baud_generator #(25000000,9600) instance_name (input_clk, baud_clk);
+*/
+    #(parameter INPUT_CLK = 25000000, parameter BAUD = 9600)
+    (
+    input   wire                clk,
+    output  wire                baud_clk
+    );
+localparam ACC_WIDTH = 16;
+localparam ACC_INC = ((BAUD << (ACC_WIDTH-4)) + (INPUT_CLK >> 5))/(INPUT_CLK >> 4);
+
+reg [ ACC_WIDTH :  0 ] r_acc = {(ACC_WIDTH+1){1'b0}};
+always@(posedge clk)
+    r_acc <= r_acc[ (ACC_WIDTH-1) :  0 ] + ACC_INC;
+
+assign baud_clk = r_acc[ACC_WIDTH];
+endmodule
+
+module zrb_uart_tx
+/*
+zrb_uart_tx instance_name(
+    INPUT_CLK,
+    INPUT_START,
+    INPUT_DATA[7:0],
+    OUTPUT_TX,
+    OUTPUT_READY
+);
+*/
+    (
+    input   wire                clk,
+    input   wire                start,
+    input   wire    [  7 :  0 ] data,
+
+    output  wire                tx,
+    output  wire                ready
+    );
+
+reg     [  7 :  0 ] r_data = 8'b0;
+reg     [  3 :  0 ] r_cnt = 4'b0;
+reg                 r_tx = 1'b1;
+assign tx = r_tx;
+assign ready = r_cnt == 4'd0;
+
+always@(posedge clk)
+begin
+    if(start && ready)
+    begin
+        r_data <= data;
+        r_cnt <= 4'd1;
+    end
+    
+    if(r_cnt == 4'd10)
+        r_cnt <= 4'd0;
+    else
+        if(~ready)
+            r_cnt <= r_cnt + 1'b1;
+
+    case(r_cnt)
+        4'd0 : r_tx <= 1'b1;
+        4'd1 : r_tx <= 1'b0;
+        4'd2 : r_tx <= r_data[0];
+        4'd3 : r_tx <= r_data[1];
+        4'd4 : r_tx <= r_data[2];
+        4'd5 : r_tx <= r_data[3];
+        4'd6 : r_tx <= r_data[4];
+        4'd7 : r_tx <= r_data[5];
+        4'd8 : r_tx <= r_data[6];
+        4'd9 : r_tx <= r_data[7];
+        4'd10: r_tx <= 1'b1;
+        default : r_tx <= 1'b1;
+    endcase
+end
+endmodule
 
