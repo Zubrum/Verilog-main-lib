@@ -52,7 +52,7 @@ module zrb_fifo
     input   wire                            wr_en,
     input   wire    [ (DATA_WIDTH-1) :  0 ] data_in,
 
-    input   wire							rd_clk,
+    input   wire                            rd_clk,
     input   wire                            rd_en,
     output  wire    [ (DATA_WIDTH-1) :  0 ] data_out,
 
