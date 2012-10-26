@@ -46,7 +46,7 @@ endmodule
 module zrb_fifo
     #(parameter ADDR_WIDTH, DATA_WIDTH)
 	(
-    input   wire                            reset,
+	input   wire                            reset,
 
 	input	wire							wr_clk,
 	input	wire							wr_en,
@@ -56,8 +56,8 @@ module zrb_fifo
 	input	wire							rd_en,
 	output	wire    [ (DATA_WIDTH-1) :  0 ] data_out,
 
-    output  wire                            fifo_full,
-    output  wire                            fifo_empty
+	output  wire                            fifo_full,
+	output  wire                            fifo_empty
 	);
 localparam DEPTH = 1 << ADDR_WIDTH;
 reg     [ (ADDR_WIDTH-1) :  0 ] r_wr_ptr = {ADDR_WIDTH{1'b0}};
