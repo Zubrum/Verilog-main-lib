@@ -199,6 +199,8 @@ endmodule
 
 /*
 http://ww1.microchip.com/downloads/en/appnotes/00774a.pdf
+http://we.easyelectronics.ru/plis/ocherednoe-izobretenie-velosipedov-ili-uart_tx-i-uart_rx-na-yazyke-verilog.html
+http://www.fpga4fun.com/SerialInterface4.html
 */
 module zrb_uart_rx
 /*
