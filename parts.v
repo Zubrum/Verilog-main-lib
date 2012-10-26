@@ -58,7 +58,7 @@ module zrb_fifo
 
     output  wire                            fifo_full,
     output  wire                            fifo_empty
-	);
+    );
 localparam DEPTH = 1 << ADDR_WIDTH;
 reg     [ (ADDR_WIDTH-1) :  0 ] r_wr_ptr = {ADDR_WIDTH{1'b0}};
 wire    [ (ADDR_WIDTH-1) :  0 ] w_wr_bin;
