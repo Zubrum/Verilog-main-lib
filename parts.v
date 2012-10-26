@@ -123,22 +123,28 @@ zrb_baud_generator #(25000000,9600) instance_name (input_clk, baud_clk);
     #(parameter INPUT_CLK = 25000000, parameter BAUD = 9600)
     (
     input   wire                clk,
-    output  wire                baud_clk
+    output  wire                baud_clk_tx,
+    output  wire                baud_clk_rx,
     );
 localparam ACC_WIDTH = 16;
-localparam ACC_INC = ((BAUD << (ACC_WIDTH-4)) + (INPUT_CLK >> 5))/(INPUT_CLK >> 4);
+localparam ACC_INC_TX = ((BAUD << (ACC_WIDTH-4)) + (INPUT_CLK >> 5))/(INPUT_CLK >> 4);
+localparam ACC_INC_RX = ACC_INC_TX * 8;
 
-reg [ ACC_WIDTH :  0 ] r_acc = {(ACC_WIDTH+1){1'b0}};
+reg [ ACC_WIDTH :  0 ] r_acc_tx = {(ACC_WIDTH+1){1'b0}};
+reg [ ACC_WIDTH :  0 ] r_acc_rx = {(ACC_WIDTH+1){1'b0}};
 always@(posedge clk)
-    r_acc <= r_acc[ (ACC_WIDTH-1) :  0 ] + ACC_INC;
-
-assign baud_clk = r_acc[ACC_WIDTH];
+begin
+    r_acc_tx <= r_acc_rx[ (ACC_WIDTH-1) :  0 ] + ACC_INC_TX;
+    r_acc_rx <= r_acc_rx[ (ACC_WIDTH-1) :  0 ] + ACC_INC_RX;
+end
+assign baud_clk_tx = r_acc_tx[ACC_WIDTH];
+assign baud_clk_rx = r_acc_rx[ACC_WIDTH];
 endmodule
 
 module zrb_uart_tx
 /*
 zrb_uart_tx instance_name(
-    INPUT_CLK,
+    INPUT_CLK, //BAUD RATE
     INPUT_START,
     INPUT_DATA[7:0],
     OUTPUT_TX,
@@ -190,4 +196,31 @@ begin
     endcase
 end
 endmodule
+
+/*
+http://ww1.microchip.com/downloads/en/appnotes/00774a.pdf
+*/
+module zrb_uart_rx
+/*
+zrb_uart_rx instance_name(
+    INPUT_CLK, //HIGH FREQ
+    INPUT_RX,
+    OUTPUT_DATA[7:0],
+    OUTPUT_READY
+    );
+*/
+    (
+    input   wire                clk,
+    input   wire                rx,
+
+    output  wire    [  7 :  0 ] data_out,
+    output  wire                ready
+    );
+
+reg     [  7 :  0 ] r_data = 8'b0;
+reg     [  1 :  0 ] rx_sync = 2'b0;
+always@(posedge clk)
+begin
+    rx_sync <= {rx_sync[0], rx};
+end
 
