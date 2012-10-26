@@ -45,8 +45,8 @@ endmodule
 
 module zrb_fifo
     #(parameter ADDR_WIDTH, DATA_WIDTH)
-	(
-	input   wire                            reset,
+    (
+    input   wire                            reset,
 
 	input	wire							wr_clk,
 	input	wire							wr_en,
