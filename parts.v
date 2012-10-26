@@ -48,12 +48,12 @@ module zrb_fifo
     (
     input   wire                            reset,
 
-    input   wire							wr_clk,
-    input   wire							wr_en,
-    input   wire	[ (DATA_WIDTH-1) :  0 ] data_in,
+    input   wire                            wr_clk,
+    input   wire                            wr_en,
+    input   wire    [ (DATA_WIDTH-1) :  0 ] data_in,
 
     input   wire							rd_clk,
-    input   wire							rd_en,
+    input   wire                            rd_en,
     output  wire    [ (DATA_WIDTH-1) :  0 ] data_out,
 
     output  wire                            fifo_full,
