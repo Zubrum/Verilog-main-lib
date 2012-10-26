@@ -1,4 +1,3 @@
-
 /*
         Verilog functions&tasks for everyday
 */
@@ -45,7 +44,7 @@ endmodule
 
 
 module zrb_fifo
-        #(parameter ADDR_WIDTH, DATA_WIDTH)
+    #(parameter ADDR_WIDTH, DATA_WIDTH)
 	(
     input   wire                            reset,
 
