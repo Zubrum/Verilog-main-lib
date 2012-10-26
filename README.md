@@ -1,1 +1,1 @@
-Functions & Tasks on Verilog for everyday
+Modules for rapid development on pure Verilog HDL without vendor IP
