@@ -44,6 +44,19 @@ endmodule
 
 
 module zrb_fifo
+/*
+zrb_fifo #(3,8) instance_name (
+    RESET,
+    WR_CLK,
+    WR_EN,
+    WR_DATA[7:0],
+    RD_CLK,
+    RD_EN,
+    RD_DATA[7:0],
+    FIFO_FULL,
+    FIFO_EMPTY
+    );
+*/
     #(parameter ADDR_WIDTH = 3, DATA_WIDTH = 8)
     (
     input   wire                            reset,
