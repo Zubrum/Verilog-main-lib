@@ -42,9 +42,9 @@ generate
 endgenerate
 endmodule
 
-/*
+
 module zrb_fifo
-    #(parameter ADDR_WIDTH, DATA_WIDTH)
+    #(parameter ADDR_WIDTH = 3, DATA_WIDTH = 8)
     (
     input   wire                            reset,
 
@@ -66,14 +66,16 @@ wire    [ (ADDR_WIDTH-1) :  0 ] w_wr_next;
 reg     [ (ADDR_WIDTH-1) :  0 ] r_rd_ptr = {ADDR_WIDTH{1'b0}};
 wire    [ (ADDR_WIDTH-1) :  0 ] w_rd_bin;
 wire    [ (ADDR_WIDTH-1) :  0 ] w_rd_next;
-reg     [ (ADDR_WIDTH-1) :  0 ] metric = {ADDR_WIDTH{1'b0}};
+
+reg     [ (ADDR_WIDTH-1) :  0 ] sync_0 = {ADDR_WIDTH{1'b0}};
+reg     [ (ADDR_WIDTH-1) :  0 ] sync_1 = {ADDR_WIDTH{1'b0}};
+wire    [ (ADDR_WIDTH-1) :  0 ] w_wr_next_rd_clk = sync_1;
 
 reg     [ (ADDR_WIDTH-1) :  0 ] mem [  0 : (DEPTH-1) ];
 reg     [ (DATA_WIDTH-1) :  0 ] r_data_out = {DATA_WIDTH{1'b0}};
 assign data_out = r_data_out;
-assign fifo_empty = w_wr_ptr_rd_clk == w_rd_bin;
-assign fifo_full = w_wr_bin > w_rd_bin ? (w_wr_bin - w_rd_bin == {(ADDR_WIDTH-1){1'b0}, 1'b1}) : 
-                                         ()
+assign fifo_empty = r_wr_ptr == w_rd_bin;
+assign fifo_full =  w_wr_next_rd_clk == r_rd_ptr;//w_rd_next == w_wr_bin;
 
 zrb_gray2bin #(ADDR_WIDTH) u0 (r_wr_ptr, w_wr_bin);
 zrb_bin2gray #(ADDR_WIDTH) u1 (w_wr_bin + 1'b1, w_wr_next);
@@ -106,27 +108,26 @@ begin
     r_rd_ptr <= w_rd_next;
 end
 
-reg     [ (ADDR_WIDTH-1) :  0 ] sync_0 = {ADDR_WIDTH{1'b0}};
-reg     [ (ADDR_WIDTH-1) :  0 ] sync_1 = {ADDR_WIDTH{1'b0}};
-wire    [ (ADDR_WIDTH-1) :  0 ] w_wr_ptr_rd_clk = sync_1;
 always@(posedge rd_clk)
 begin
-    sync_0 <= w_wr_bin;
+    sync_0 <= w_wr_next;
     sync_1 <= sync_0;
 end
-*/
+endmodule
 
 module zrb_baud_generator
 /*
-zrb_baud_generator #(25000000,9600) instance_name (input_clk, baud_clk);
+zrb_baud_generator #(50000000,9600) instance_name (input_clk, baud_clk, baud_clk_8);
 */
-    #(parameter INPUT_CLK = 25000000, parameter BAUD = 9600)
+    #(parameter INPUT_CLK = 50000000, parameter BAUD = 9600)
     (
     input   wire                clk,
     output  wire                baud_clk_tx,
-    output  wire                baud_clk_rx,
+    output  wire                baud_clk_rx
     );
 localparam ACC_WIDTH = 16;
+//localparam ACC_MAX_TX = (INPUT_CLK/BAUD/2);
+//localparam ACC_MAX_RX = ACC_MAX_TX / 8;
 localparam ACC_INC_TX = ((BAUD << (ACC_WIDTH-4)) + (INPUT_CLK >> 5))/(INPUT_CLK >> 4);
 localparam ACC_INC_RX = ACC_INC_TX * 8;
 
@@ -202,7 +203,9 @@ http://ww1.microchip.com/downloads/en/appnotes/00774a.pdf
 http://we.easyelectronics.ru/plis/ocherednoe-izobretenie-velosipedov-ili-uart_tx-i-uart_rx-na-yazyke-verilog.html
 http://www.fpga4fun.com/SerialInterface4.html
 */
-module zrb_uart_rx
+
+
+//module zrb_uart_rx
 /*
 zrb_uart_rx instance_name(
     INPUT_CLK, //HIGH FREQ
@@ -211,6 +214,7 @@ zrb_uart_rx instance_name(
     OUTPUT_READY
     );
 */
+/*
     (
     input   wire                clk,
     input   wire                rx,
@@ -226,3 +230,4 @@ begin
     rx_sync <= {rx_sync[0], rx};
 end
 
+*/
