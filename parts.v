@@ -84,10 +84,16 @@ reg     [ (ADDR_WIDTH-1) :  0 ] sync_0 = {ADDR_WIDTH{1'b0}};
 reg     [ (ADDR_WIDTH-1) :  0 ] sync_1 = {ADDR_WIDTH{1'b0}};
 wire    [ (ADDR_WIDTH-1) :  0 ] w_wr_next_rd_clk = sync_1;
 
-reg     [ (ADDR_WIDTH-1) :  0 ] mem [  0 : (DEPTH-1) ];
+/*
+reg     [ (ADDR_WIDTH-1) :  0 ] sync_00 = {ADDR_WIDTH{1'b0}};
+reg     [ (ADDR_WIDTH-1) :  0 ] sync_01 = {ADDR_WIDTH{1'b0}};
+wire    [ (ADDR_WIDTH-1) :  0 ] w_rd_next_wr_clk = sync_01;
+*/
+
+reg     [ (DATA_WIDTH-1) :  0 ] mem [  0 : (DEPTH-1) ];
 reg     [ (DATA_WIDTH-1) :  0 ] r_data_out = {DATA_WIDTH{1'b0}};
 assign data_out = r_data_out;
-assign fifo_empty = r_wr_ptr == w_rd_bin;
+assign fifo_empty = r_wr_ptr == r_rd_ptr;
 assign fifo_full =  w_wr_next_rd_clk == r_rd_ptr;//w_rd_next == w_wr_bin;
 
 zrb_gray2bin #(ADDR_WIDTH) u0 (r_wr_ptr, w_wr_bin);
@@ -127,6 +133,14 @@ begin
     sync_1 <= sync_0;
 end
 endmodule
+/*
+always@(posedge wr_clk)
+begin
+    sync_00 <= w_rd_next;
+    sync_01 <= sync_00;
+end
+endmodule
+*/
 
 module zrb_baud_generator
 /*
