@@ -107,7 +107,7 @@ always@(posedge wr_clk or posedge reset)
 if(reset)
     r_wr_ptr <= {ADDR_WIDTH{1'b0}};
 else
-if(wr_en)
+if(wr_en && !fifo_full)
 begin
     mem[r_wr_ptr] <= data_in;
     r_wr_ptr <= w_wr_next;
@@ -121,7 +121,7 @@ begin
     r_data_out <= {DATA_WIDTH{1'b0}};
 end
 else
-if(rd_en)
+if(rd_en && !fifo_empty)
 begin
     r_data_out <= mem[r_rd_ptr];
     r_rd_ptr <= w_rd_next;
