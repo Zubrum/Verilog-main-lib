@@ -94,7 +94,7 @@ reg     [ (DATA_WIDTH-1) :  0 ] mem [  0 : (DEPTH-1) ];
 reg     [ (DATA_WIDTH-1) :  0 ] r_data_out = {DATA_WIDTH{1'b0}};
 assign data_out = r_data_out;
 assign fifo_empty = r_wr_ptr == r_rd_ptr;
-assign fifo_full =  w_wr_next_rd_clk == r_rd_ptr;//w_rd_next == w_wr_bin;
+assign fifo_full =  w_wr_next == r_rd_ptr;//w_rd_next == w_wr_bin;
 
 zrb_gray2bin #(ADDR_WIDTH) u0 (r_wr_ptr, w_wr_bin);
 zrb_bin2gray #(ADDR_WIDTH) u1 (w_wr_bin + 1'b1, w_wr_next);
