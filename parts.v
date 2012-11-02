@@ -177,7 +177,7 @@ zrb_uart_tx instance_name(
     INPUT_DATA[7:0],
     OUTPUT_TX,
     OUTPUT_READY
-);
+    );
 */
     (
     input   wire                clk,
@@ -232,7 +232,7 @@ http://www.fpga4fun.com/SerialInterface4.html
 */
 
 
-//module zrb_uart_rx
+module zrb_uart_rx
 /*
 zrb_uart_rx instance_name(
     INPUT_CLK, //HIGH FREQ
@@ -241,7 +241,6 @@ zrb_uart_rx instance_name(
     OUTPUT_READY
     );
 */
-/*
     (
     input   wire                clk,
     input   wire                rx,
@@ -252,12 +251,54 @@ zrb_uart_rx instance_name(
 
 reg     [  7 :  0 ] r_data = 8'b0;
 reg     [  1 :  0 ] rx_sync = 2'b0;
+reg     [  2 :  0 ] cnt = 3'b0;
+reg     [  2 :  0 ] cnt_bit = 3'b0;
+wire                start = ~rx_sync[0] & rx_sync[1];
+localparam  [  1 :  0 ] IDLE  = 2'b01,
+                        READ  = 2'b11,
+                        READY = 2'b10;
+reg         [  1 :  0 ] r_state = IDLE;
+
+assign ready = r_state == READY;
+
 always@(posedge clk)
 begin
     rx_sync <= {rx_sync[0], rx};
+    case(r_state)
+        IDLE:
+            if(start)
+                r_state <= READ;
+
+        READ:
+            if(cnt_bit == 3'd7)
+                r_state <= READY;
+
+        default:
+            r_state <= IDLE;
+    endcase
+    
+    case(r_state)
+        IDLE:
+        begin
+            cnt <= 3'b0;
+            r_data <= 8'b0;
+            cnt_bit <= 3'b0;
+        end
+        
+        READ:
+        begin
+            cnt <= cnt + 1'b1;
+            if(cnt == 3'd3)
+            begin
+                r_data <= {r_data[6:0], rx};
+                cnt_bit <= cnt_bit + 1'b1;
+            end
+        end
+        
+        default: begin end
+    endcase    
 end
 
-*/
 
 /*
 module zrb_sram_controller
