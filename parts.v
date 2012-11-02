@@ -258,3 +258,100 @@ begin
 end
 
 */
+
+/*
+module zrb_sram_controller
+	#()
+	(
+	input 	wire clk,
+	output	wire			[ 17 :  0 ] sram_adr,
+	inout	wire			[ 15 :  0 ] sram_dat,
+	output	wire						sram_we,		//active low
+	output	wire						sram_lb,		//active low
+	output	wire						sram_ub,		//active low
+	output	wire						sram_oe,		//active low
+	output	wire						sram_ce			//active low
+	);
+
+localparam	[  4 :  0 ] NOT_SELECTED = 					5'b11111,
+						OUTPUT_DISABLE = 				5'b10111,
+						READ_LOWER =					5'b10001,
+						READ_UPPER =					5'b10010,
+						READ =							5'b10000,
+						WRITE_LOWER =					5'b00101,
+						WRITE_UPPER =					5'b00110,
+						WRITE =							5'b00100;
+reg			[  4 :  0 ] r_state = NOT_SELECTED; //{we,ce,oe,lb,ub,}
+reg			[  4 :  0 ] r_state_nxt = NOT_SELECTED; 
+	
+assign sram_we = r_state[4];
+assign sram_ce = r_state[3];
+assign sram_oe = r_state[2];
+assign sram_lb = r_state[1];	
+assign sram_ub = r_state[0];	
+
+reg			[ 17 :  0 ] r_sram_adr = 18'b0;
+reg			[ 15 :  0 ] r_write_dat = 16'b0;
+reg			[ 15 :  0 ] r_read_dat = 16'b0;
+
+assign sram_adr = r_sram_adr;
+assign sram_dat = (r_state == READ) ? 16'bz : r_write_dat;
+
+always@(posedge clk)
+begin
+    r_state <= r_state_nxt;
+    case(r_state_nxt)
+		NOT_SELECTED:
+		begin
+			if(r_state == NOT_SELECTED)r_state_nxt <= WRITE;
+			if(r_state == WRITE)r_state_nxt <= READ;
+			if(r_state == READ) r_state_nxt <= OUTPUT_DISABLE;
+		end
+		WRITE:
+			if(i == 3'b111)	
+				r_state_nxt <= READ;
+		READ:
+			r_state_nxt <= OUTPUT_DISABLE;
+        default:
+            r_state_nxt <= OUTPUT_DISABLE;
+    endcase
+end
+
+always@(negedge clk)
+case(r_state)
+	WRITE:
+		r_write_dat <= 16'b011;
+	OUTPUT_DISABLE:
+        r_write_dat <= 16'b0;
+
+endcase
+
+
+always@(posedge clk)
+begin
+
+	case(r_state)
+		READ:
+			r_read_dat <= sram_dat;
+	endcase
+	
+    case(r_state_nxt)        
+        WRITE:
+        begin
+            i <= i + 1'b1;
+            r_sram_adr[12-:3] <= i;
+        end
+
+        READ:
+            r_sram_adr <= 18'd7168;
+
+        OUTPUT_DISABLE:
+			r_sram_adr[12:10] <= r_read_dat[2:0];
+
+		default: begin end
+
+    endcase	
+end
+
+endmodule
+*/
