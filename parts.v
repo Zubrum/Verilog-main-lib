@@ -84,12 +84,6 @@ reg     [ (ADDR_WIDTH-1) :  0 ] sync_0 = {ADDR_WIDTH{1'b0}};
 reg     [ (ADDR_WIDTH-1) :  0 ] sync_1 = {ADDR_WIDTH{1'b0}};
 wire    [ (ADDR_WIDTH-1) :  0 ] w_wr_next_rd_clk = sync_1;
 
-/*
-reg     [ (ADDR_WIDTH-1) :  0 ] sync_00 = {ADDR_WIDTH{1'b0}};
-reg     [ (ADDR_WIDTH-1) :  0 ] sync_01 = {ADDR_WIDTH{1'b0}};
-wire    [ (ADDR_WIDTH-1) :  0 ] w_rd_next_wr_clk = sync_01;
-*/
-
 reg     [ (DATA_WIDTH-1) :  0 ] mem [  0 : (DEPTH-1) ];
 reg     [ (DATA_WIDTH-1) :  0 ] r_data_out = {DATA_WIDTH{1'b0}};
 assign data_out = r_data_out;
@@ -113,7 +107,6 @@ begin
     r_wr_ptr <= w_wr_next;
 end
 
-
 always@(posedge rd_clk or posedge reset)
 if(reset)
 begin
@@ -133,14 +126,7 @@ begin
     sync_1 <= sync_0;
 end
 endmodule
-/*
-always@(posedge wr_clk)
-begin
-    sync_00 <= w_rd_next;
-    sync_01 <= sync_00;
-end
-endmodule
-*/
+
 
 module zrb_baud_generator
 /*
@@ -153,21 +139,20 @@ zrb_baud_generator #(50000000,9600) instance_name (input_clk, baud_clk, baud_clk
     output  wire                baud_clk_rx
     );
 localparam ACC_WIDTH = 16;
-//localparam ACC_MAX_TX = (INPUT_CLK/BAUD/2);
-//localparam ACC_MAX_RX = ACC_MAX_TX / 8;
-localparam ACC_INC_TX = ((BAUD << (ACC_WIDTH-4)) + (INPUT_CLK >> 5))/(INPUT_CLK >> 4);
+localparam ACC_INC_TX = (1<<ACC_WIDTH)/(INPUT_CLK/BAUD/2);
 localparam ACC_INC_RX = ACC_INC_TX * 8;
 
 reg [ ACC_WIDTH :  0 ] r_acc_tx = {(ACC_WIDTH+1){1'b0}};
 reg [ ACC_WIDTH :  0 ] r_acc_rx = {(ACC_WIDTH+1){1'b0}};
 always@(posedge clk)
 begin
-    r_acc_tx <= r_acc_rx[ (ACC_WIDTH-1) :  0 ] + ACC_INC_TX;
+    r_acc_tx <= r_acc_tx[ (ACC_WIDTH-1) :  0 ] + ACC_INC_TX;
     r_acc_rx <= r_acc_rx[ (ACC_WIDTH-1) :  0 ] + ACC_INC_RX;
 end
 assign baud_clk_tx = r_acc_tx[ACC_WIDTH];
 assign baud_clk_rx = r_acc_rx[ACC_WIDTH];
 endmodule
+
 
 module zrb_uart_tx
 /*
@@ -192,34 +177,30 @@ reg     [  7 :  0 ] r_data = 8'b0;
 reg     [  3 :  0 ] r_cnt = 4'b0;
 reg                 r_tx = 1'b1;
 assign tx = r_tx;
-assign ready = r_cnt == 4'd0;
+assign ready = r_cnt == 4'd9;
 
 always@(posedge clk)
 begin
-    if(start && ready)
+    if(start & ready)
     begin
         r_data <= data;
-        r_cnt <= 4'd1;
-    end
-    
-    if(r_cnt == 4'd10)
         r_cnt <= 4'd0;
-    else
-        if(~ready)
+    end
+
+	if(~ready)
             r_cnt <= r_cnt + 1'b1;
 
     case(r_cnt)
-        4'd0 : r_tx <= 1'b1;
-        4'd1 : r_tx <= 1'b0;
-        4'd2 : r_tx <= r_data[0];
-        4'd3 : r_tx <= r_data[1];
-        4'd4 : r_tx <= r_data[2];
-        4'd5 : r_tx <= r_data[3];
-        4'd6 : r_tx <= r_data[4];
-        4'd7 : r_tx <= r_data[5];
-        4'd8 : r_tx <= r_data[6];
-        4'd9 : r_tx <= r_data[7];
-        4'd10: r_tx <= 1'b1;
+        4'd0 : r_tx <= 1'b0;
+        4'd1 : r_tx <= r_data[0];
+        4'd2 : r_tx <= r_data[1];
+        4'd3 : r_tx <= r_data[2];
+        4'd4 : r_tx <= r_data[3];
+        4'd5 : r_tx <= r_data[4];
+        4'd6 : r_tx <= r_data[5];
+        4'd7 : r_tx <= r_data[6];
+        4'd8 : r_tx <= r_data[7];
+        4'd9 : r_tx <= 1'b1;
         default : r_tx <= 1'b1;
     endcase
 end
@@ -248,7 +229,6 @@ zrb_uart_rx instance_name(
     output  wire    [  7 :  0 ] data_out,
     output  wire                ready
     );
-
 reg     [  7 :  0 ] r_data = 8'b0;
 reg     [  1 :  0 ] rx_sync = 2'b0;
 reg     [  2 :  0 ] cnt = 3'b0;
@@ -298,7 +278,7 @@ begin
         default: begin end
     endcase    
 end
-
+endmodule
 
 /*
 module zrb_sram_controller
