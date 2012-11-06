@@ -138,19 +138,29 @@ zrb_baud_generator #(50000000,9600) instance_name (input_clk, baud_clk, baud_clk
     output  wire                baud_clk_tx,
     output  wire                baud_clk_rx
     );
-localparam ACC_WIDTH = 16;
-localparam ACC_INC_TX = (1<<ACC_WIDTH)/(INPUT_CLK/BAUD/2);
-localparam ACC_INC_RX = ACC_INC_TX * 8;
-
-reg [ ACC_WIDTH :  0 ] r_acc_tx = {(ACC_WIDTH+1){1'b0}};
-reg [ ACC_WIDTH :  0 ] r_acc_rx = {(ACC_WIDTH+1){1'b0}};
+/*http://www.excamera.com/sphinx/fpga-uart.html#uart*/
+localparam ACC_WIDTH = 21;
+localparam BAUD_TX = 4*BAUD;
+localparam BAUD_RX = 4*8*BAUD;
+reg		[ 27 :  0 ] r_tx = 28'b0;
+reg		[ 27 :  0 ] r_rx = 28'b0;
+wire	[ 27 :  0 ] inc_tx = r_tx[27] ? (BAUD_TX) : (BAUD_TX-INPUT_CLK);
+wire	[ 27 :  0 ] inc_rx = r_rx[27] ? (BAUD_RX) : (BAUD_RX-INPUT_CLK);
+wire	[ 27 :  0 ] tx_tic = r_tx + inc_tx;
+wire	[ 27 :  0 ] rx_tic = r_rx + inc_rx;
+reg					tx_clk = 1'b0;
+reg					rx_clk = 1'b0;
 always@(posedge clk)
 begin
-    r_acc_tx <= r_acc_tx[ (ACC_WIDTH-1) :  0 ] + ACC_INC_TX;
-    r_acc_rx <= r_acc_rx[ (ACC_WIDTH-1) :  0 ] + ACC_INC_RX;
+	r_tx <= tx_tic;
+	if(~r_tx[27])
+		tx_clk <= tx_clk + 1'b1;
+    r_rx <= rx_tic;
+	if(~r_rx[27])
+		rx_clk <= rx_clk + 1'b1;
 end
-assign baud_clk_tx = r_acc_tx[ACC_WIDTH];
-assign baud_clk_rx = r_acc_rx[ACC_WIDTH];
+assign baud_clk_tx = tx_clk;
+assign baud_clk_rx = rx_clk;
 endmodule
 
 
@@ -174,35 +184,50 @@ zrb_uart_tx instance_name(
     );
 
 reg     [  7 :  0 ] r_data = 8'b0;
-reg     [  3 :  0 ] r_cnt = 4'b0;
+reg     [  2 :  0 ] r_cnt = 3'b0;
 reg                 r_tx = 1'b1;
+
+localparam			IDLE = 2'b00,
+					START_BIT = 2'b01,
+					DATA_SEND = 2'b11,
+					STOP_BIT = 2'b10;
+reg		[  1 :  0 ] r_state = IDLE;
 assign tx = r_tx;
-assign ready = r_cnt == 4'd9;
+assign ready = (r_state == IDLE) | (r_state == STOP_BIT);
 
 always@(posedge clk)
 begin
-    if(start & ready)
-    begin
-        r_data <= data;
-        r_cnt <= 4'd0;
-    end
-
-	if(~ready)
-            r_cnt <= r_cnt + 1'b1;
-
-    case(r_cnt)
-        4'd0 : r_tx <= 1'b0;
-        4'd1 : r_tx <= r_data[0];
-        4'd2 : r_tx <= r_data[1];
-        4'd3 : r_tx <= r_data[2];
-        4'd4 : r_tx <= r_data[3];
-        4'd5 : r_tx <= r_data[4];
-        4'd6 : r_tx <= r_data[5];
-        4'd7 : r_tx <= r_data[6];
-        4'd8 : r_tx <= r_data[7];
-        4'd9 : r_tx <= 1'b1;
-        default : r_tx <= 1'b1;
-    endcase
+	if(start)
+		r_data <= data;
+	case(r_state)
+		IDLE:
+			if(start)
+				r_state <= START_BIT;
+		START_BIT:
+			r_state <= DATA_SEND;
+		DATA_SEND:
+			if(r_cnt == 3'd7)
+				r_state <= STOP_BIT;
+		STOP_BIT:
+			r_state <= IDLE;
+	endcase
+	
+	case(r_state)
+		IDLE:
+			r_tx <= 1'b1;
+		START_BIT:
+			r_tx <= 1'b0;
+		DATA_SEND:
+			begin
+				r_cnt <= r_cnt + 1'b1;
+				r_tx <= r_data[r_cnt];
+			end
+		STOP_BIT:
+			begin
+				r_cnt <= 3'b0;
+				r_tx <= 1'b1;
+			end
+	endcase
 end
 endmodule
 
@@ -233,26 +258,32 @@ reg     [  7 :  0 ] r_data = 8'b0;
 reg     [  1 :  0 ] rx_sync = 2'b0;
 reg     [  2 :  0 ] cnt = 3'b0;
 reg     [  2 :  0 ] cnt_bit = 3'b0;
-wire                start = ~rx_sync[0] & rx_sync[1];
+wire                start = (~rx_sync[0] & rx_sync[1]) & (r_state == IDLE);
 localparam  [  1 :  0 ] IDLE  = 2'b01,
-                        READ  = 2'b11,
-                        READY = 2'b10;
+						SYNC = 2'b00,
+                        READ  = 2'b10,
+                        READY = 2'b11;
 reg         [  1 :  0 ] r_state = IDLE;
 
 assign ready = r_state == READY;
-
+assign data_out = r_data;
 always@(posedge clk)
 begin
     rx_sync <= {rx_sync[0], rx};
     case(r_state)
         IDLE:
             if(start)
-                r_state <= READ;
+                r_state <= SYNC;
+		SYNC:
+			if(cnt == 3'd2)
+				r_state <= READ;
 
         READ:
-            if(cnt_bit == 3'd7)
+            if((cnt_bit == 3'd7) & (cnt == 3'd2))
                 r_state <= READY;
-
+        READY:
+			if(cnt == 3'd2)
+				r_state <= IDLE;
         default:
             r_state <= IDLE;
     endcase
@@ -265,16 +296,22 @@ begin
             cnt_bit <= 3'b0;
         end
         
+		SYNC:
+		begin
+			cnt <= cnt + 1'b1;
+		end
+		
         READ:
         begin
             cnt <= cnt + 1'b1;
-            if(cnt == 3'd3)
+            if(cnt == 3'd2)
             begin
                 r_data <= {r_data[6:0], rx};
                 cnt_bit <= cnt_bit + 1'b1;
             end
         end
-        
+        READY:
+            cnt <= cnt + 1'b1;
         default: begin end
     endcase    
 end
