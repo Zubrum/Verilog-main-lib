@@ -42,10 +42,9 @@ generate
 endgenerate
 endmodule
 
-
-module zrb_fifo
+module zrb_async_fifo
 /*
-zrb_fifo #(3,8) instance_name (
+zrb_sync_fifo #(8,32) instance_name (
     RESET,
     WR_CLK,
     WR_EN,
@@ -57,7 +56,7 @@ zrb_fifo #(3,8) instance_name (
     FIFO_EMPTY
     );
 */
-    #(parameter ADDR_WIDTH = 3, DATA_WIDTH = 8)
+    #(parameter ADDR_WIDTH = 4, DATA_WIDTH = 32)
     (
     input   wire                            reset,
 
@@ -73,58 +72,66 @@ zrb_fifo #(3,8) instance_name (
     output  wire                            fifo_empty
     );
 localparam DEPTH = 1 << ADDR_WIDTH;
-reg     [ (ADDR_WIDTH-1) :  0 ] r_wr_ptr = {ADDR_WIDTH{1'b0}};
-wire    [ (ADDR_WIDTH-1) :  0 ] w_wr_bin;
-wire    [ (ADDR_WIDTH-1) :  0 ] w_wr_next;
-reg     [ (ADDR_WIDTH-1) :  0 ] r_rd_ptr = {ADDR_WIDTH{1'b0}};
-wire    [ (ADDR_WIDTH-1) :  0 ] w_rd_bin;
-wire    [ (ADDR_WIDTH-1) :  0 ] w_rd_next;
 
-reg     [ (ADDR_WIDTH-1) :  0 ] sync_0 = {ADDR_WIDTH{1'b0}};
-reg     [ (ADDR_WIDTH-1) :  0 ] sync_1 = {ADDR_WIDTH{1'b0}};
-wire    [ (ADDR_WIDTH-1) :  0 ] w_wr_next_rd_clk = sync_1;
+reg     [ (ADDR_WIDTH) :  0 ] rd_ptr = {(ADDR_WIDTH+1){1'b0}};  //[4:0] = 5'b0
+wire    [ (ADDR_WIDTH) :  0 ] wrd_ptr;                          //[4:0]
+wire    [ (ADDR_WIDTH) :  0 ] rd_next;
 
-reg     [ (DATA_WIDTH-1) :  0 ] mem [  0 : (DEPTH-1) ];
-reg     [ (DATA_WIDTH-1) :  0 ] r_data_out = {DATA_WIDTH{1'b0}};
-assign data_out = r_data_out;
-assign fifo_empty = r_wr_ptr == r_rd_ptr;
-assign fifo_full =  w_wr_next == r_rd_ptr;//w_rd_next == w_wr_bin;
+reg     [ (ADDR_WIDTH) :  0 ] wr_ptr = {(ADDR_WIDTH+1){1'b0}};  //[4:0] = 5'b0
+wire    [ (ADDR_WIDTH) :  0 ] wwr_ptr;
+wire    [ (ADDR_WIDTH) :  0 ] wr_next;
 
-zrb_gray2bin #(ADDR_WIDTH) u0 (r_wr_ptr, w_wr_bin);
-zrb_bin2gray #(ADDR_WIDTH) u1 (w_wr_bin + 1'b1, w_wr_next);
+wire    [ (ADDR_WIDTH-1) :  0 ] rd_loc = rd_ptr[ (ADDR_WIDTH-1) :  0 ];//[3:0] = [3:0]
+wire    [ (ADDR_WIDTH-1) :  0 ] wr_loc = wr_ptr[ (ADDR_WIDTH-1) :  0 ];//[3:0] = [3:0]
 
-zrb_gray2bin #(ADDR_WIDTH) u2 (r_rd_ptr, w_rd_bin);
-zrb_bin2gray #(ADDR_WIDTH) u3 (w_rd_bin + 1'b1, w_rd_next);
+reg     [ (DATA_WIDTH-1) :  0 ] mem [ (DEPTH-1) :  0 ];//[31:0] mem[15:0]
+reg     [ (DATA_WIDTH-1) :  0 ] dout = {DATA_WIDTH{1'b0}};
 
+reg     full = 1'b0;
+reg     empty = 1'b1;
+always@(rd_ptr or wr_ptr)
+begin
+    full <= (wr_loc == rd_loc) & (wr_ptr[ADDR_WIDTH] != rd_ptr[ADDR_WIDTH]);
+    empty <= (rd_loc == wr_loc) & (wr_ptr[ADDR_WIDTH] == rd_ptr[ADDR_WIDTH]);
+end
+
+assign  fifo_full = full;
+assign  fifo_empty = empty;
+/*
+zrb_gray2bin #(ADDR_WIDTH+1) u0 (rd_ptr, wrd_ptr);
+zrb_bin2gray #(ADDR_WIDTH+1) u1 (wrd_ptr + 1'b1, rd_next);
+
+zrb_gray2bin #(ADDR_WIDTH+1) u2 (wr_ptr, wwr_ptr);
+zrb_bin2gray #(ADDR_WIDTH+1) u3 (wwr_ptr + 1'b1, wr_next);
+*/
 
 always@(posedge wr_clk or posedge reset)
 if(reset)
-    r_wr_ptr <= {ADDR_WIDTH{1'b0}};
+    wr_ptr <= {(ADDR_WIDTH+1){1'b0}};
 else
-if(wr_en && !fifo_full)
+if(wr_en & !fifo_full)
 begin
-    mem[r_wr_ptr] <= data_in;
-    r_wr_ptr <= w_wr_next;
+    mem[wr_loc] <= data_in;
+    //wr_ptr <= wr_next;
+    wr_ptr <= wr_ptr + 1'b1;
 end
 
 always@(posedge rd_clk or posedge reset)
 if(reset)
 begin
-    r_rd_ptr <= {ADDR_WIDTH{1'b0}};
-    r_data_out <= {DATA_WIDTH{1'b0}};
+    rd_ptr <= {(ADDR_WIDTH+1){1'b0}};
+    dout <= {DATA_WIDTH{1'b0}};
 end
 else
-if(rd_en && !fifo_empty)
+if(rd_en & !fifo_empty)
 begin
-    r_data_out <= mem[r_rd_ptr];
-    r_rd_ptr <= w_rd_next;
+    dout <= mem[rd_loc];
+    //rd_ptr <= rd_next;
+    rd_ptr <= rd_ptr + 1'b1;
 end
 
-always@(posedge rd_clk)
-begin
-    sync_0 <= w_wr_next;
-    sync_1 <= sync_0;
-end
+//assign data_out = rd_en ? mem[rd_ptr] : data_out;
+assign data_out = dout;
 endmodule
 
 
