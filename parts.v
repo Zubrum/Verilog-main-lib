@@ -134,7 +134,6 @@ end
 assign data_out = dout;
 endmodule
 
-
 module zrb_baud_generator
 /*
 zrb_baud_generator #(50000000,9600) instance_name (input_clk, baud_clk, baud_clk_8);
@@ -142,99 +141,81 @@ zrb_baud_generator #(50000000,9600) instance_name (input_clk, baud_clk, baud_clk
     #(parameter INPUT_CLK = 50000000, parameter BAUD = 9600)
     (
     input   wire                clk,
-    output  wire                baud_clk_tx,
-    output  wire                baud_clk_rx
+    output  wire                baud_clk_tx_en,
+    output  wire                baud_clk_rx_en
     );
 /*http://www.excamera.com/sphinx/fpga-uart.html#uart*/
-localparam ACC_WIDTH = 21;
-localparam BAUD_TX = 4*BAUD;
-localparam BAUD_RX = 4*8*BAUD;
-reg		[ 27 :  0 ] r_tx = 28'b0;
-reg		[ 27 :  0 ] r_rx = 28'b0;
-wire	[ 27 :  0 ] inc_tx = r_tx[27] ? (BAUD_TX) : (BAUD_TX-INPUT_CLK);
-wire	[ 27 :  0 ] inc_rx = r_rx[27] ? (BAUD_RX) : (BAUD_RX-INPUT_CLK);
-wire	[ 27 :  0 ] tx_tic = r_tx + inc_tx;
-wire	[ 27 :  0 ] rx_tic = r_rx + inc_rx;
-reg					tx_clk = 1'b0;
-reg					rx_clk = 1'b0;
+localparam BAUD_TX = BAUD;
+localparam BAUD_RX = 8*BAUD;
+reg		[ 28 :  0 ] r_tx = 29'b0;
+reg		[ 28 :  0 ] r_rx = 29'b0;
+wire	[ 28 :  0 ] inc_tx = r_tx[28] ? (BAUD_TX) : (BAUD_TX-INPUT_CLK);
+wire	[ 28 :  0 ] inc_rx = r_rx[28] ? (BAUD_RX) : (BAUD_RX-INPUT_CLK);
+wire	[ 28 :  0 ] tx_tic = r_tx + inc_tx;
+wire	[ 28 :  0 ] rx_tic = r_rx + inc_rx;
 always@(posedge clk)
 begin
 	r_tx <= tx_tic;
-	if(~r_tx[27])
-		tx_clk <= tx_clk + 1'b1;
     r_rx <= rx_tic;
-	if(~r_rx[27])
-		rx_clk <= rx_clk + 1'b1;
 end
-assign baud_clk_tx = tx_clk;
-assign baud_clk_rx = rx_clk;
+assign baud_clk_tx_en = ~r_tx[28];
+assign baud_clk_rx_en = ~r_rx[28];
 endmodule
 
 
 module zrb_uart_tx
 /*
-zrb_uart_tx instance_name(
-    INPUT_CLK, //BAUD RATE
-    INPUT_START,
+zrb_uart_tx #(8,0,1) instance_name(
+    CLK,
+    CLK_EN, //BAUD RATE
+    RESET,
+    WRITE,
     INPUT_DATA[7:0],
     OUTPUT_TX,
-    OUTPUT_READY
+    OUTPUT_BUSY
     );
 */
+    #(parameter [3:0] NUM_BITS = 8, parameter [3:0]PARITY = 0, parameter [3:0]STOP_BIT = 1)
     (
     input   wire                clk,
-    input   wire                start,
+    input   wire                clk_en,
+    input   wire                reset,
+    input   wire                write,
     input   wire    [  7 :  0 ] data,
 
     output  wire                tx,
-    output  wire                ready
+    output  wire                busy
     );
-
-reg     [  7 :  0 ] r_data = 8'b0;
-reg     [  2 :  0 ] r_cnt = 3'b0;
+localparam [3:0]START_BIT = 1;
+reg     [  8 :  0 ] r_data = 9'b0;
+reg     [  3 :  0 ] r_cnt = 4'b0;
 reg                 r_tx = 1'b1;
 
-localparam			IDLE = 2'b00,
-					START_BIT = 2'b01,
-					DATA_SEND = 2'b11,
-					STOP_BIT = 2'b10;
-reg		[  1 :  0 ] r_state = IDLE;
-assign tx = r_tx;
-assign ready = (r_state == IDLE) | (r_state == STOP_BIT);
+wire		        sending = |r_cnt;
+assign              busy = |r_cnt[3:1];
+assign              tx = r_tx;
 
 always@(posedge clk)
+if(reset)
 begin
-	if(start)
-		r_data <= data;
-	case(r_state)
-		IDLE:
-			if(start)
-				r_state <= START_BIT;
-		START_BIT:
-			r_state <= DATA_SEND;
-		DATA_SEND:
-			if(r_cnt == 3'd7)
-				r_state <= STOP_BIT;
-		STOP_BIT:
-			r_state <= IDLE;
-	endcase
-	
-	case(r_state)
-		IDLE:
-			r_tx <= 1'b1;
-		START_BIT:
-			r_tx <= 1'b0;
-		DATA_SEND:
-			begin
-				r_cnt <= r_cnt + 1'b1;
-				r_tx <= r_data[r_cnt];
-			end
-		STOP_BIT:
-			begin
-				r_cnt <= 3'b0;
-				r_tx <= 1'b1;
-			end
-	endcase
+    r_tx <= 1'b1;
+    r_cnt <= 4'b0;
+    r_data <= 9'b0;
+end
+else
+if(clk_en)
+begin
+    if(write & ~busy)
+    begin
+        r_data <= {data, 1'b0};
+        r_cnt <= START_BIT+NUM_BITS+STOP_BIT;
+    end
+
+    if(sending)
+    begin
+        {r_data, r_tx} <= {1'b1, r_data};
+        r_cnt <= r_cnt - 1'b1;
+    end
 end
 endmodule
 
