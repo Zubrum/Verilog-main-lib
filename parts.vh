@@ -43,9 +43,9 @@ endgenerate
 endmodule
 
 
-module zrb_fifo
+module zrb_async_fifo
 /*
-zrb_fifo #(3,8) instance_name (
+zrb_async_fifo #(3,8) instance_name(
     RESET,
     WR_CLK,
     WR_EN,
@@ -80,15 +80,11 @@ reg     [ (ADDR_WIDTH-1) :  0 ] r_rd_ptr = {ADDR_WIDTH{1'b0}};
 wire    [ (ADDR_WIDTH-1) :  0 ] w_rd_bin;
 wire    [ (ADDR_WIDTH-1) :  0 ] w_rd_next;
 
-reg     [ (ADDR_WIDTH-1) :  0 ] sync_0 = {ADDR_WIDTH{1'b0}};
-reg     [ (ADDR_WIDTH-1) :  0 ] sync_1 = {ADDR_WIDTH{1'b0}};
-wire    [ (ADDR_WIDTH-1) :  0 ] w_wr_next_rd_clk = sync_1;
-
-reg     [ (DATA_WIDTH-1) :  0 ] mem [  0 : (DEPTH-1) ];
+reg     [ (DATA_WIDTH-1) :  0 ] mem [ (DEPTH-1):  0 ];
 reg     [ (DATA_WIDTH-1) :  0 ] r_data_out = {DATA_WIDTH{1'b0}};
 assign data_out = r_data_out;
 assign fifo_empty = r_wr_ptr == r_rd_ptr;
-assign fifo_full =  w_wr_next == r_rd_ptr;//w_rd_next == w_wr_bin;
+assign fifo_full =  w_wr_next == r_rd_ptr;
 
 zrb_gray2bin #(ADDR_WIDTH) u0 (r_wr_ptr, w_wr_bin);
 zrb_bin2gray #(ADDR_WIDTH) u1 (w_wr_bin + 1'b1, w_wr_next);
@@ -118,14 +114,7 @@ begin
     r_data_out <= mem[r_rd_ptr];
     r_rd_ptr <= w_rd_next;
 end
-
-always@(posedge rd_clk)
-begin
-    sync_0 <= w_wr_next;
-    sync_1 <= sync_0;
-end
 endmodule
-
 
 
 module zrb_baud_generator
